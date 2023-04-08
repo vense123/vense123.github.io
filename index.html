@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>OSM Map Example</title>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.7.1/dist/leaflet.css" />
+    <style>
+      #map {height: 500px;}
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <button onclick="exportMarkers()">Export Markers</button>
+    <textarea id="exportedMarkers" style="width: 310px; height: 130px;"></textarea>
+    </br>
+    <button onclick="importMarkers()">Import Markers</button>
+    <textarea id="importedMarkers" style="width: 310px; height: 130px;"></textarea>
+
+    <script>
+      var map = L.map('map').setView([24.8981184, 118.6154525], 13);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'Map data &copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a> contributors',
+        maxZoom: 18,
+      }).addTo(map);
+
+      var markers = L.featureGroup().addTo(map);
+
+      function addMarker(latlng) {
+        L.marker(latlng).addTo(markers);
+        document.cookie = "marker=" + JSON.stringify(markers.toGeoJSON());
+      }
+
+      function exportMarkers() {
+        var exportedMarkers = [];
+
+        markers.eachLayer(function(layer) {
+          if (layer instanceof L.Marker) {
+            exportedMarkers.push({
+              type: 'marker',
+              latLng: layer.getLatLng(),
+              color: '#a24ac3'
+            });
+          }
+        });
+        
+        // Add current markers to exportedMarkers
+        var currentMarkers = JSON.parse(getCookie("marker"));
+        if (currentMarkers) {
+          currentMarkers.features.forEach(function(marker) {
+            if (marker.geometry.type === 'Point') {
+              exportedMarkers.push({
+                type: 'marker',
+                latLng: marker.geometry.coordinates.reverse(),
+                color: '#a24ac3'
+              });
+            }
+          });
+        }
+
+        document.getElementById("exportedMarkers").value = JSON.stringify(exportedMarkers);
+      }
+
+      function importMarkers() {
+        var importedMarkers = JSON.parse(document.getElementById("importedMarkers").value);
+        markers.clearLayers();
+        importedMarkers.forEach(function(marker) {
+          if (marker.type === 'marker') {
+            L.marker(marker.latLng, {color: marker.color}).addTo(markers);
+          }
+        });
+        document.cookie = "marker=" + JSON.stringify(markers.toGeoJSON());
+      }
+
+      function getCookie(name) {
+        var value = "; " + document.cookie;
+        var parts = value.split("; " + name + "=");
+        if (parts.length == 2) return parts.pop().split(";").shift();
+      }
+
+      function loadMarkers() {
+        var markerData = getCookie("marker");
+        if (markerData) {
+          var geojson = L.geoJSON(JSON.parse(markerData));
+          markers.addLayer(geojson);
+        }
+      }
+
+      map.on('click', function(e) {
+        addMarker(e.latlng);
+      });
+
+      loadMarkers();
+    </script>
+  </body>
+</html>
+
